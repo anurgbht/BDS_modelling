@@ -10,6 +10,47 @@ import matplotlib.pyplot as plt
 import random
 import pickle
 
+def include_tree(row):
+    x3 = row[2]
+    x10 = row[9]
+    x16 = row[15]
+    x14 = row[13]
+    x17 = row[16]
+    x3 = row[2]
+
+    if x3 <= 8.345:
+        if x3 <= 5.25:
+            ## A
+            tt = -4.627443
+        elif x3 > 5.25:
+            if x14 <= -1.445:
+                if x17 <= 0.045:
+                    ## B
+                    tt = 2.141884
+                elif x17 > 0.045:
+                    ## C
+                    tt = 0.247894
+            elif x14 > -1.445:
+                ## D
+                tt = -1.716035
+    elif x3 > 8.345:
+        if x16 <= 9.45:
+            if x14 <= -0.405:
+                ## E
+                tt = 1.991644
+            elif x14 > -0.405:
+                ## F
+                tt = 0.043099
+        elif x16 > 9.45:
+            ## G
+            tt = 4.45875
+        
+    return tt
+
+def subs_WOE(row):
+    temp = woe_table.loc[woe_table.iloc[:,0] == row.iloc[-1],1]
+    return temp
+
 def my_pred_fun(beta_0,beta,temp_x_trigger):
     temp = pd.DataFrame()
     for i in range(temp_x_trigger.shape[0]):
@@ -26,9 +67,14 @@ def my_pred_fun(beta_0,beta,temp_x_trigger):
 class App:
     def __init__(self, master):
 
-        beta_0 = -3.964265005
+        os.chdir('D:/Confidential/Projects/Steel/LD2 BDS/prelim_analysis/data/constructed data/')
+        with open("logistic_pickle_backup.pickle",'rb') as f:
+            clf_logit_trigger = pickle.load(f)
+            f.close()
+
+        beta_0 = clf_logit_trigger.intercept_
         global beta
-        beta = [-0.914784459,0.660212007,0.098584228,-0.20714564,0.753576132,0.260344808,-0.126988644,0.26644008,-1.863531568,0.670481238,0.23300898,-49.73201013,0.383255886,-0.262514124,0.268160158]
+        beta = clf_logit_trigger.coef_[0].tolist()
         beta_0_back = clf_logit_trigger.intercept_
         global beta_back
         beta_back = clf_logit_trigger.coef_[0].tolist()

@@ -1,36 +1,65 @@
 import os
 import numpy as np
 import pandas as pd
-import random
 import matplotlib.pyplot as plt
 from sklearn.metrics import *
+from sklearn import preprocessing as pp
+import random
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier,GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn import tree
-from sklearn.svm import SVC
+from keras.models import Sequential
+from keras.layers import Dense,Dropout
 import pydotplus
+from sklearn.svm import SVC
 
-################################################################################
-################################################################################
-################################################################################
 
 def train_test_split_my(x_data, y_data, test_size,random_state):
     rs = int(np.round_(len(y_data)*test_size))
     tt = range(len(y_data))
     test_index = random.sample(tt,rs)
-    train_index = [x for x in tt if x not in test_index]
-    x_data = x_data.reset_index().drop('index',1)
-    y_data = y_data.reset_index().drop('index',1)
-    X_train = x_data.loc[train_index,:]
-    y_train = y_data.loc[train_index,:]
-    X_test = x_data.loc[test_index,:]
-    y_test = y_data.loc[test_index,:]
+    train_index = pd.DataFrame()
+    for i in tt:
+        if i not in test_index:
+            train_index = train_index.append([i])
+            test_index = [x for x in test_index]
+    test_index = pd.DataFrame(test_index)
+    x_data = pd.DataFrame(pp.scale(x_data))
+    y_data = pd.DataFrame(y_data)
+    X_train = x_data.iloc[train_index.iloc[:,0],:]
+    y_train = y_data.iloc[train_index.iloc[:,0],:]
+    X_test = x_data.iloc[test_index.iloc[:,0],:]
+    y_test = y_data.iloc[test_index.iloc[:,0],:]
     print(x_data.shape,y_data.shape,X_train.shape,X_test.shape,y_train.shape,y_test.shape)
 
     return X_train, X_test, y_train, y_test,test_index
 
-def my_pred_fun(clf,x_data,y_test,thresh,plot_flag=1):
+
+def my_pred_fun(clf,x_data,y_test,thresh,plot_flag=0):
+    print('entering my_pred')
+    pred = clf.predict_proba(x_data)
+    y_pred = clf.predict(x_data)
+    pred = pd.DataFrame(pred)
+    print('predicted shape',pred.shape)
+    pred = pred.iloc[:,-1]
+    my_pred = pred
+    if plot_flag == 1:
+        plt.scatter(my_pred,range(0,len(my_pred)),c=y_test,s=120)
+        plt.grid(1)
+        plt.xticks([thresh])
+        plt.show()
+
+    for i in range(0,len(pred)):
+        if pred[i] > thresh:
+            my_pred[i] = 1
+        else:
+            my_pred[i] = 0
+    print(confusion_matrix(y_test,my_pred))
+    return my_pred
+
+def my_pred_fun2(*args):
+    ##clf1,clf2,x_data,y_test,thresh,plot_flag=0
     print('entering my_pred')
     pred = clf.predict_proba(x_data)
     y_pred = clf.predict(x_data)
@@ -53,7 +82,7 @@ def my_pred_fun(clf,x_data,y_test,thresh,plot_flag=1):
     return my_pred
 
 ################################################################################
-#######################MODEL BUILDING FUNCTIONS HERE###########################
+###########################MODELLING CODES HERE###############################
 ################################################################################
 
 def prelim_gbm(*args):
@@ -89,11 +118,62 @@ def prelim_gbm(*args):
         importances = clf.feature_importances_
         for f in range(X_test.shape[1]):
             print("Feature %d (%f)" % (f + 1, importances[f]))
+
         return clf
     else:
         print('Something went wrong')
 
-def single_tree(*args):
+
+
+def prelim_sklearn(*args):
+    print('Preliminary sklearn Analysis')
+    proceed_flag = 0
+    if len(args) == 3:
+        x_data = args[0]
+        y_data = args[1]
+        thresh = args[2]
+        X_train, X_test, y_train, y_test,test_index = train_test_split_my(x_data, y_data, test_size=0.3,random_state=42)
+        proceed_flag = 1
+    elif len(args) == 5:
+        X_train = args[0]
+        X_test = args[1]
+        y_train = args[2]
+        y_test = args[3]
+        thresh = args[4]
+        proceed_flag = 1
+    if proceed_flag == 1:
+        X_train = np.array(X_train)
+        X_test = np.array(X_test)
+        clf = MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(12,), random_state=1)
+        clf.fit(X_train, y_train)
+        my_pred = my_pred_fun(clf,X_test,y_test,0.2)
+        print(clf.score(X_test,y_test))
+        print(confusion_matrix(y_test,my_pred))
+        return clf
+    else:
+        print('Something went wrong')
+
+
+
+def prelim_pybrain(*args):
+    print('Preliminary PyBrain Analysis')
+    proceed_flag = 0
+    if len(args) == 3:
+        x_data = args[0]
+        y_data = args[1]
+        thresh = args[2]
+        X_train, X_test, y_train, y_test,test_index = train_test_split_my(x_data, y_data, test_size=0.3,random_state=42)
+        proceed_flag = 1
+    elif len(args) == 5:
+        X_train = args[0]
+        X_test = args[1]
+        y_train = args[2]
+        y_test = args[3]
+        thresh = args[4]
+        proceed_flag = 1
+
+
+def prelim_single_tree(*args):
     print('Preliminary single tree analysis')
     proceed_flag = 0
     if len(args) == 4:
@@ -218,6 +298,46 @@ def prelim_logit(*args):
     else:
         print('Something went wrong')
 
+def prelim_keras(*args):
+    print('Preliminary Keras Analysis')
+    proceed_flag = 0
+    if len(args) == 3:
+        x_data = args[0]
+        y_data = args[1]
+        thresh = args[2]
+        X_train, X_test, y_train, y_test,test_index = train_test_split_my(x_data, y_data, test_size=0.3,random_state=42)
+        proceed_flag = 1
+    elif len(args) == 5:
+        X_train = args[0]
+        X_test = args[1]
+        y_train = args[2]
+        y_test = args[3]
+        thresh = args[4]
+        proceed_flag = 1
+    if proceed_flag == 1:
+        X_train = np.array(X_train)
+        y_train = np.array(y_train)
+        clf = Sequential()
+        clf.add(Dense(35, input_dim=21, init='uniform', activation='relu'))
+##        clf.add(Dropout(0.3))
+        clf.add(Dense(16, activation='sigmoid'))
+##        clf.add(Dropout(0.3))
+        clf.add(Dense(1, activation='sigmoid'))
+        # Compile clf
+        clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+        # Fit the clf
+        clf.fit(X_train, y_train,nb_epoch=150, batch_size=32,  verbose=0)
+
+        # calculate predictions
+        X_test = np.array(X_test)
+        pred = clf.predict_proba(X_test)
+        my_pred = my_pred_fun(clf,X_test,y_test,thresh)
+
+        return clf
+    else:
+        print('Something went wrong')
+
 def prelim_svm(*args):
     print('Preliminary SVM Analysis')
     proceed_flag = 0
@@ -255,11 +375,8 @@ def prelim_svm(*args):
     else:
         print('Something went wrong')
 
-
-
-
 ################################################################################
-###########################THERMOCOUPLE FINDING HERE##########################
+###########################THERMOCOUPLE FINDING HERE############################
 ################################################################################
 
 def find_active(m_width):
@@ -279,22 +396,6 @@ def find_active(m_width):
     else:
         therm_list = -1
     return therm_list
-
-def give_active_list(col_no):
-    if col_no == 20:
-        therm_list = [x+1 for x in range(20)]
-    elif col_no == 18:
-        therm_list = [1,2,3,4,5,6,7,9,10,11,12,13,14,15,16,17,19,20]
-    elif col_no == 16:
-        therm_list = [2,3,4,5,6,7,9,10,12,13,14,15,16,17,19,20]
-    elif col_no == 14:
-        therm_list = [2,3,4,5,6,9,10,12,13,14,15,16,19,20]
-    elif col_no == 12:
-        therm_list = [3,4,5,6,9,10,13,14,15,16,19,20]
-    else:
-        therm_list = -1
-    return therm_list
-
 
 def find_left(m_width,TC_layer):
     therm_list = find_active(m_width)
@@ -321,6 +422,41 @@ def find_right(m_width,TC_layer):
         [print('trigger thermocouple not found in the active list') for x in range(7)]
         check_index = -1
     return check_index
+
+
+def find_left2(TC_layer,file):
+    flag = 0
+    file = file.loc[0:240,["TC1","TC2","TC3","TC4","TC5","TC6","TC7","TC8","TC9","TC10","TC11","TC12","TC13","TC14","TC15","TC16","TC17","TC18","TC19","TC20"]]
+    tt1 = file.mean(axis=0)
+    # there is already a plus one, hence a minus 2 for balancing it out
+    check_layer = TC_layer - 2
+    while flag == 0 :
+        if check_layer == -1:
+            check_layer = 19
+        check_layer_mean = tt1[check_layer]
+        if check_layer_mean < 50:
+            check_layer = check_layer - 1
+        else:
+            flag = 1
+    check_layer = check_layer + 1
+    return check_layer
+
+def find_right2(TC_layer,file):
+    flag = 0
+    file = file.loc[:,["TC1","TC2","TC3","TC4","TC5","TC6","TC7","TC8","TC9","TC10","TC11","TC12","TC13","TC14","TC15","TC16","TC17","TC18","TC19","TC20"]]
+    tt1 = file.mean(axis=0)
+    # plus one already here
+    check_layer = TC_layer
+    while flag == 0 :
+        if check_layer == 20:
+            check_layer = 0
+        check_layer_mean = tt1[check_layer]
+        if check_layer_mean < 50:
+            check_layer = check_layer + 1
+        else:
+            flag = 1
+    check_layer = check_layer + 1
+    return check_layer
 
 def find_opposite(TC_layer):
     # TC_layer has become the index here
@@ -408,11 +544,11 @@ def find_l1_peak_slope(l1,cs):
     temp=0
     n=0
     while temp<100:
-        if n<len(cs)-16:
+        if n<len(cs)-7:
             n=n+1
             temp = temp + (50/3)*(cs.iloc[-n])
         else:
-            n=len(cs)-16
+            n=len(cs)-7
             temp = 101
     temp2 = l1
     temp3 = temp2.iloc[-n] - temp2.iloc[-(n+7)]
@@ -422,14 +558,11 @@ def find_l1_peak_ratio(l1,cs):
     temp=0
     n=0
     while temp<100:
-        if n<len(cs)-16:
+        if n<len(cs)-7:
             n=n+1
             temp = temp + (50/3)*(cs.iloc[-n])
         else:
-            n=len(cs)-16
-            # this is just for trouble shooting
-            # print("Going to the else part",n,l1.iloc[-(n+15):-(n+7)],np.mean(l1.iloc[-(n+15):-(n+7)]))
-            # 45
+            n=len(cs)-7
             temp = 101
     temp2 = l1
     temp3 = (temp2.iloc[-n])/np.mean(temp2.iloc[-(n+15):-(n+7)])
@@ -488,6 +621,16 @@ def peak_diff(l1,l2):
     max_t1 = temp1.idxmax()
     temp2 = l2.iloc[-25:].reset_index().iloc[:,-1]
     max_t2 = temp2.idxmax()
+##    print('max1-max2',max_t1-max_t2,max_t1,max_t2,np.std(temp1),np.std(temp2))
+##
+##    plt.subplot(2,1,1)
+##    plt.plot(range(len(l1)),l1,range(len(l2)),l2)
+##    plt.legend(['l1','l2'])
+##
+##    plt.subplot(2,1,2)
+##    plt.plot(range(len(temp1)),temp1,range(len(temp2)),temp2)
+##    plt.legend(['temp1','temp2'])
+##    plt.show()
     if (np.std(temp1) < 4) or (np.std(temp2) < 4):
         tt = -99
     else:
@@ -502,11 +645,15 @@ def peak_diff(l1,l2):
 ################################################################################
 ################################################################################
 ################################################################################
+################################################################################
+################################################################################
+################################################################################
+################################################################################
 
-def make_x_300(L1,L2,ML,CP,CS,tag):
-    x_temp = []
-    y_temp = []
-    index_temp = []
+def make_x(L1,L2,ML,CP,CS,MW,tag,file_name):
+    x_temp = pd.DataFrame()
+    y_temp = pd.DataFrame()
+    index_temp = pd.DataFrame()
     n = 61
     k = 4
     for i in range(0,k):
@@ -515,70 +662,80 @@ def make_x_300(L1,L2,ML,CP,CS,tag):
         ml = ML[i*n:(i+1)*n].reset_index().iloc[:,-1]
         cs = CS[i*n:(i+1)*n].reset_index().iloc[:,-1]
         cp = CP[i*n:(i+1)*n].reset_index().iloc[:,-1]
+        mw = MW[i*n:(i+1)*n].reset_index().iloc[:,-1]
 
-        x_temp.append(make_one_x(l1,l2,ml,cp,cs))
+        x_temp = x_temp.append([[
+            slope_n(l2,3),
+            slope_n(l2,5),
+            slope_n(l2,7),
+            sign_present(l1,l2,2),
+            sign_present(l1,l2,5),
+            sign_present(l1,l2,7),
+            last_n(l1,5),
+            last_n(l2,5),
+            last_n(l1,32),
+            last_n(l2,32),
+            np.mean(cp),
+            np.std(l1.iloc[-12:]),
+            np.std(ml.iloc[-12:]),
+            find_l1_peak_slope(l1,cs),
+            find_l1_peak_ratio(l1,cs),
+            find_drop(l1),
+            find_drop(l2),
+            cs_change(cs),
+            get_kinks(l2),
+            first_derivative(l2)
+                                ]])
+        index_temp = index_temp.append([file_name])
 
         if i  == (k-1) and tag == 'True':
-            y_temp.append(1)
+            y_temp = y_temp.append([1])
         else:
-            y_temp.append(0)
-    return x_temp,y_temp
+            y_temp = y_temp.append([0])
+    return x_temp,y_temp,index_temp
 
-def make_x_3600(L1,L2,ML,CP,CS):
-    x_temp = []
-    y_temp = []
-    index_temp = []
-    n = 61
-    k = 59
-    for i in range(0,k):
-        l1 = L1[i*n:(i+1)*n].reset_index().iloc[:,-1]
-        l2 = L2[i*n:(i+1)*n].reset_index().iloc[:,-1]
-        ml = ML[i*n:(i+1)*n].reset_index().iloc[:,-1]
-        cs = CS[i*n:(i+1)*n].reset_index().iloc[:,-1]
-        cp = CP[i*n:(i+1)*n].reset_index().iloc[:,-1]
 
-        x_temp.append(make_one_x(l1,l2,ml,cp,cs))
-        y_temp.append(0)
-    return x_temp,y_temp
-
-def make_cont_x(L1,L2,ML,CP,CS):
+def make_cont_x(L1,L2,ML,CP,CS,MW):
     x_temp = pd.DataFrame()
-    cp = np.mean(CP)
-    # this is the default value in case the iteration needs to be skipped
-    default_x = [0,-9999,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
     for i in range(0,len(L1)-63):
         l1 = L1[i:i+61].reset_index().iloc[:,-1]
         l2 = L2[i:i+61].reset_index().iloc[:,-1]
         ml = ML[i:i+61].reset_index().iloc[:,-1]
         cs = CS[i:i+61].reset_index().iloc[:,-1]
+        cp = CP[i:i+61].reset_index().iloc[:,-1]
+        mw = MW[i:i+61].reset_index().iloc[:,-1]
 
-        if ((cs.iloc[-1] < 0.61) or ( ((l2.iloc[-1]-l2.iloc[-4]) < 2) and ((l2.iloc[-1]-l2.iloc[-15]) < 2) and ((l2.iloc[-1]-l2.iloc[-32]) < 2))):
-            x_temp = x_temp.append([default_x])
-        else:
-            x_temp = x_temp.append([make_one_x(l1,l2,ml,cp,cs)])
-##    print(x_temp.shape, " : shape of the returned x_trigger")
-    return x_temp
-
-def make_parallel_x(L1,L2,ML,CP,CS):
-    x_temp = pd.DataFrame()
-    cp = np.mean(CP)
-    # this is the default value in case the iteration needs to be skipped
-    default_x = [0,-9999,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-    for i in range(0,len(L1)-63):
-        l1 = L1[i:i+61].reset_index().iloc[:,-1]
-        l2 = L2[i:i+61].reset_index().iloc[:,-1]
-        ml = ML[i:i+61].reset_index().iloc[:,-1]
-        cs = CS[i:i+61].reset_index().iloc[:,-1]
-        # this is the check 2, the feature calculation is skipped if this check is not passed
-        if ((cs.iloc[-1] < 0.61) or ( ((l2.iloc[-1]-l2.iloc[-4]) < 2) and ((l2.iloc[-1]-l2.iloc[-15]) < 2) and ((l2.iloc[-1]-l2.iloc[-32]) < 2))):
-            x_temp = x_temp.append([default_x])
-        else:
-            x_temp = x_temp.append([make_one_x(l1,l2,ml,cp,cs)])
+        x_temp = x_temp.append([[
+            slope_n(l2,3),
+            slope_n(l2,5),
+            slope_n(l2,7),
+            sign_present(l1,l2,2),
+            sign_present(l1,l2,5),
+            sign_present(l1,l2,7),
+            last_n(l1,5),
+            last_n(l2,5),
+            last_n(l1,32),
+            last_n(l2,32),
+            np.mean(cp),
+            np.std(l1.iloc[-12:]),
+            np.std(ml.iloc[-12:]),
+            find_l1_peak_slope(l1,cs),
+            find_l1_peak_ratio(l1,cs),
+            find_drop(l1),
+            find_drop(l2),
+            cs_change(cs),
+            get_kinks(l2),
+            first_derivative(l2)
+                                ]])
 ##    print(x_temp.shape, " : shape of the returned x_trigger")
     return x_temp
 
 def make_one_x(L1,L2,ML,CP,CS):
-    x_temp = [
+    #print('Making continuous X')
+    x_temp = pd.DataFrame()
+    
+    x_temp = x_temp.append([[
             slope_n(L2,3),
             slope_n(L2,5),
             slope_n(L2,7),
@@ -589,7 +746,7 @@ def make_one_x(L1,L2,ML,CP,CS):
             last_n(L2,5),
             last_n(L1,32),
             last_n(L2,32),
-            np.average(CP),
+            CP,
             np.std(L1.iloc[-12:]),
             np.std(ML.iloc[-12:]),
             find_l1_peak_slope(L1,CS),
@@ -599,6 +756,66 @@ def make_one_x(L1,L2,ML,CP,CS):
             cs_change(CS),
             get_kinks(L2),
             first_derivative(L2)
-        ]
+        ]])
 
     return x_temp
+
+
+
+# for tree based classifier
+def make_bin_x(L1,L2,ML,CP,CS,MW):
+    print('Making Binary X')
+    x_temp = pd.DataFrame()
+    for i in range(0,238):
+        print(x_temp.shape)
+        # print(i)
+        l1 = L1[i:i+61].reset_index().iloc[:,-1]
+        l2 = L2[i:i+61].reset_index().iloc[:,-1]
+        ml = ML[i:i+61].reset_index().iloc[:,-1]
+        cs = CS[i:i+61].reset_index().iloc[:,-1]
+        cp = CP[i:i+61].reset_index().iloc[:,-1]
+        mw = MW[i:i+61].reset_index().iloc[:,-1]
+
+        x_temp = x_temp.append([[
+            bin_crossover(l1,l2),
+            
+                                ]])
+
+    return x_temp
+
+
+#####################################################################################
+
+def calc_WOE(X,y):
+
+    temp2 = pd.DataFrame()
+    tg = sum(y)
+    tb = len(y) - tg
+    for i in set(X):
+        temp = y[X == i]
+        ttg = sum(temp)/tg
+        ttb = (len(temp)-sum(temp))/tb
+        ttl = np.log((ttg/ttb))
+        temp2 = temp2.append([[i,ttl]])
+    print(temp2)
+    return temp2
+
+#####################################################################################
+
+def my_plot(x):
+    plt.plot(range(len(x)),x)
+    plt.grid(1)
+    plt.show()
+
+
+#####################################################################################
+#####################################################################################
+#####################################################################################
+
+##L = pd.read_csv("D:/Confidential/Projects/Steel/LD2 BDS/prelim_analysis/data/new_dat/F1041807_103_01_2_13_CASTER-C_False_JAN'15_new.csv")
+##L2 = L.TC34
+##L1 = L.TC14
+##for i in range(4):
+##    l1 = L1.iloc[i:61*i + 61]
+##    l2 = L2.iloc[i:61*i + 61]
+##    peak_diff(l1,l2)
