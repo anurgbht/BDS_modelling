@@ -1,0 +1,39 @@
+raw
+raw
+raw
+raw
+raw
+raw
+raw
+raw
+raw
+raw
+29 std1
+28 std2
+27 check index1
+26 check index2
+25 l1 drop
+24 l2 drop
+23 l2 avg
+22 cs change
+21 ml change
+20 high freq
+19 rise time l1
+18 drop time l2
+17 int slope l1
+16 int slope ml
+15 sudden drop
+14 far std l1
+13 far amp l1
+12 far std l2
+11 far amp l2
+10 long term l1 drop
+9 long term l2 rise
+8 long term l1 rise
+7 cross
+6 A
+5 B
+4 prob
+3 time
+2 file name
+1 TC
